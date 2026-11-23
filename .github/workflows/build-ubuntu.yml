@@ -1,0 +1,43 @@
+name: portwatch — Ubuntu server binary
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portwatch-server-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Build portable portwatch Linux application
+    runs-on: [self-hosted, Linux, X64, nn-ubuntu-ci]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned packaging dependencies
+        run: python -m pip install --upgrade 'PyInstaller==6.16.0' 'PySide6==6.9.2'
+      - name: Syntax check
+        run: python -m py_compile gui.py portwatch.py theme.py
+      - name: Build Qt6 portable application on Ubuntu server
+        run: python -m PyInstaller --clean --noconfirm --onedir --windowed --name portwatch --add-data "portwatch.svg:." gui.py
+      - name: Create downloadable archive and SHA256
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x dist/portwatch/portwatch
+          mkdir -p build-artifacts
+          tar -C dist -czf build-artifacts/portwatch-linux-x86_64.tar.gz portwatch
+          (cd build-artifacts && sha256sum *.tar.gz > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portwatch-linux-x86_64
+          path: build-artifacts/*
+          if-no-files-found: error
+          retention-days: 30
