@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: portwatch-server-build-${{ github.ref }}
@@ -35,9 +35,12 @@ jobs:
           mkdir -p build-artifacts
           tar -C dist -czf build-artifacts/portwatch-linux-x86_64.tar.gz portwatch
           (cd build-artifacts && sha256sum *.tar.gz > SHA256SUMS.txt)
-      - uses: actions/upload-artifact@v4
+      - name: Publish portwatch Linux package on GitHub Releases
+        uses: softprops/action-gh-release@v2
         with:
-          name: portwatch-linux-x86_64
-          path: build-artifacts/*
-          if-no-files-found: error
-          retention-days: 30
+          tag_name: server-${{ github.sha }}
+          name: portwatch Linux server build
+          prerelease: true
+          body: Compiled with PyInstaller and Qt6 on the author's Ubuntu server.
+          files: build-artifacts/*
+          fail_on_unmatched_files: true
